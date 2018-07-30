@@ -22,6 +22,7 @@ class Unit {
         this.height = 40;
         this.distanceTraveledX = 0;
         this.distanceTraveledY = 0;
+        this.iSelected =false;
 
         // stats
         this.maxHp = 100;
@@ -32,6 +33,8 @@ class Unit {
         this.effectiveAttackRadius = this.width / 2 + this.attackRadius; // note: always width === height
         this.sightRadius = 150;
         this.effectiveSightRadius = this.width / 2 + this.sightRadius;
+        this.selectionRadius = 5;
+        this.effectiveSelectionRadius = this.width / 2 + this.selectionRadius;
     }
 }
 
@@ -59,13 +62,16 @@ function on_canvas_click(e) {
             let doesContain = selectedUnits.find(iSelected => (iSelected.id === iUnit.id));
             if (!doesContain) {
                 selectedUnits.push(iUnit);
+                iUnit.iSelected = true;
             }
         }
     });
     if (!collisionFound) {
+        selectedUnits.forEach(iUnit => {
+            iUnit.iSelected = false;
+        });
         selectedUnits = [];
     }
-    console.log(selectedUnits);
 }
 
 function on_canvas_rightclick(e) {
@@ -131,6 +137,10 @@ function loopy (t) {
         rect = ctx.fillRect(iUnit.x - iUnit.attackRadius, iUnit.y - iUnit.attackRadius, iUnit.effectiveAttackRadius * 2, iUnit.effectiveAttackRadius * 2);
         ctx.fillStyle = "#11991111";
         rect = ctx.fillRect(iUnit.x - iUnit.sightRadius, iUnit.y - iUnit.sightRadius, iUnit.effectiveSightRadius * 2, iUnit.effectiveSightRadius * 2);
+        if (iUnit.iSelected) {
+            ctx.fillStyle = "#11ff1133";
+            rect = ctx.fillRect(iUnit.x - iUnit.selectionRadius, iUnit.y - iUnit.selectionRadius, iUnit.effectiveSelectionRadius * 2, iUnit.effectiveSelectionRadius * 2);
+        }
         ctx.fillStyle = "#333333ee";
         rect = ctx.fillRect(iUnit.x, iUnit.y, iUnit.width, iUnit.height);
     });
