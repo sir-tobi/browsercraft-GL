@@ -55,7 +55,10 @@ class Unit {
         this.spriteHeight = 73;
 
         // animation
-        this.animWalkingSprites = 5;
+        this.animPhase = 0;
+        this.animFramesBetweenPhases = 9;
+        this.animWalking = 0;
+        this.animWalkingMax = 292;
     }
 }
 
@@ -132,6 +135,18 @@ function loopy (t) {
 
             iUnit.distanceTraveledX = distanceToTravelX;
             iUnit.distanceTraveledY = distanceToTravelY;
+
+            // Walking animation
+            iUnit.animPhase++;
+            if (iUnit.animPhase >= iUnit.animFramesBetweenPhases) {
+                iUnit.animPhase = 0;
+                // TODO direction
+                if (!(iUnit.animWalking >= iUnit.animWalkingMax)) {
+                    iUnit.animWalking += iUnit.spriteHeight;
+                } else {
+                    iUnit.animWalking = 0;
+                }
+            }
         }
     });
 
@@ -154,20 +169,20 @@ function loopy (t) {
     ctx.fillStyle = "#C5C19Cff";
     ctx.fillRect(0,0, ctx.canvas.width, ctx.canvas.height);
     units.forEach(iUnit => {
-        ctx.fillStyle = "#ff111111";
+        ctx.fillStyle = "#ff111122";
         rect = ctx.fillRect(iUnit.x - iUnit.attackRadius, iUnit.y - iUnit.attackRadius, iUnit.effectiveAttackRadius * 2, iUnit.effectiveAttackRadius * 2);
         ctx.fillStyle = "#11991111";
         rect = ctx.fillRect(iUnit.x - iUnit.sightRadius, iUnit.y - iUnit.sightRadius, iUnit.effectiveSightRadius * 2, iUnit.effectiveSightRadius * 2);
         if (iUnit.iSelected) {
-            ctx.fillStyle = "#11ff1133";
-            rect = ctx.fillRect(iUnit.x - iUnit.selectionRadius, iUnit.y - iUnit.selectionRadius, iUnit.effectiveSelectionRadius * 2, iUnit.effectiveSelectionRadius * 2);
+            ctx.strokeStyle = "#11ff11ff";
+            rect = ctx.strokeRect(iUnit.x - iUnit.selectionRadius, iUnit.y - iUnit.selectionRadius, iUnit.effectiveSelectionRadius * 2, iUnit.effectiveSelectionRadius * 2);
         }
-        ctx.fillStyle = "#33333311";
+        ctx.fillStyle = "#11111122";
         rect = ctx.fillRect(iUnit.x, iUnit.y, iUnit.width, iUnit.height);
         ctx.drawImage(
             iUnit.sprite,
             292, // TODO sprite that is used for standing
-            0, // TODO sprite that is used for standing
+            iUnit.animWalking, // TODO sprite that is used for standing
             iUnit.spriteWidth,
             iUnit.spriteHeight,
             iUnit.x,
