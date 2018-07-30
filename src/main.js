@@ -2,6 +2,27 @@
 let canvas = document.getElementById("gameArea");
 let ctx = canvas.getContext("2d");
 let objectId = 0;
+var gruntImage = new Image();
+gruntImage.src = "assets/sprites/grunt.png";
+
+function sprite (options) {
+				
+    var that = {};
+					
+    that.context = options.context;
+    that.width = options.width;
+    that.height = options.height;
+    that.image = options.image;
+
+    return that;
+}
+
+var gruntSprite = sprite({
+    context: canvas.getContext("2d"),
+    width: 73,
+    height: 73,
+    image: gruntImage
+});
 
 const units = [];
 const collidables = [];
@@ -18,8 +39,8 @@ class Unit {
         this.y = y;
         this.targetX = x;
         this.targetY = y;
-        this.width = 40;
-        this.height = 40;
+        this.width = 60;
+        this.height = 60;
         this.distanceTraveledX = 0;
         this.distanceTraveledY = 0;
         this.iSelected =false;
@@ -33,8 +54,12 @@ class Unit {
         this.effectiveAttackRadius = this.width / 2 + this.attackRadius; // note: always width === height
         this.sightRadius = 150;
         this.effectiveSightRadius = this.width / 2 + this.sightRadius;
-        this.selectionRadius = 5;
+        this.selectionRadius = 0;
         this.effectiveSelectionRadius = this.width / 2 + this.selectionRadius;
+
+        //animations
+        this.spriteWidth = 73;
+        this.spriteHeight = 73;
     }
 }
 
@@ -133,7 +158,7 @@ function loopy (t) {
     ctx.fillStyle = "#C5C19Cff";
     ctx.fillRect(0,0, ctx.canvas.width, ctx.canvas.height);
     units.forEach(iUnit => {
-        ctx.fillStyle = "#99111111";
+        ctx.fillStyle = "#ff111111";
         rect = ctx.fillRect(iUnit.x - iUnit.attackRadius, iUnit.y - iUnit.attackRadius, iUnit.effectiveAttackRadius * 2, iUnit.effectiveAttackRadius * 2);
         ctx.fillStyle = "#11991111";
         rect = ctx.fillRect(iUnit.x - iUnit.sightRadius, iUnit.y - iUnit.sightRadius, iUnit.effectiveSightRadius * 2, iUnit.effectiveSightRadius * 2);
@@ -141,8 +166,18 @@ function loopy (t) {
             ctx.fillStyle = "#11ff1133";
             rect = ctx.fillRect(iUnit.x - iUnit.selectionRadius, iUnit.y - iUnit.selectionRadius, iUnit.effectiveSelectionRadius * 2, iUnit.effectiveSelectionRadius * 2);
         }
-        ctx.fillStyle = "#333333ee";
+        ctx.fillStyle = "#33333311";
         rect = ctx.fillRect(iUnit.x, iUnit.y, iUnit.width, iUnit.height);
+        ctx.drawImage(
+            gruntImage,
+            292, // TODO sprite that is used for standing
+            0, // TODO sprite that is used for standing
+            iUnit.spriteWidth,
+            iUnit.spriteHeight,
+            iUnit.x,
+            iUnit.y,
+            iUnit.width,
+            iUnit.height);
     });
 
     requestAnimationFrame(loopy);
