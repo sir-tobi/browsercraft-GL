@@ -2,8 +2,6 @@
 let canvas = document.getElementById("gameArea");
 let ctx = canvas.getContext("2d");
 let objectId = 0;
-var gruntImage = new Image();
-gruntImage.src = "assets/sprites/grunt.png";
 
 function sprite (options) {
 				
@@ -16,13 +14,6 @@ function sprite (options) {
 
     return that;
 }
-
-var gruntSprite = sprite({
-    context: canvas.getContext("2d"),
-    width: 73,
-    height: 73,
-    image: gruntImage
-});
 
 const units = [];
 const collidables = [];
@@ -57,9 +48,14 @@ class Unit {
         this.selectionRadius = 0;
         this.effectiveSelectionRadius = this.width / 2 + this.selectionRadius;
 
-        //animations
+        // sprite
+        this.sprite = new Image ();
+        this.sprite.src = "assets/sprites/grunt.png"; 
         this.spriteWidth = 73;
         this.spriteHeight = 73;
+
+        // animation
+        this.animWalkingSprites = 5;
     }
 }
 
@@ -169,7 +165,7 @@ function loopy (t) {
         ctx.fillStyle = "#33333311";
         rect = ctx.fillRect(iUnit.x, iUnit.y, iUnit.width, iUnit.height);
         ctx.drawImage(
-            gruntImage,
+            iUnit.sprite,
             292, // TODO sprite that is used for standing
             0, // TODO sprite that is used for standing
             iUnit.spriteWidth,
@@ -179,7 +175,6 @@ function loopy (t) {
             iUnit.width,
             iUnit.height);
     });
-
     requestAnimationFrame(loopy);
 }
 requestAnimationFrame(loopy);
