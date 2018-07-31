@@ -140,7 +140,22 @@ function loopy (t) {
             iUnit.animPhase++;
             if (iUnit.animPhase >= iUnit.animFramesBetweenPhases) {
                 iUnit.animPhase = 0;
-                // TODO direction
+                /* TODO direction
+
+                    Each direction has a range of 45 degrees. Top is 0 degree +/- 22,5 (45 / 2).
+                    The direction will determine the shown animation sprite. One sprite for each direction.
+
+                                    dirX    dirY    angleMin  angleMax
+                    top             0       pos.    337,6      22,5     
+                    top-right       pos.    pos.     22,6      67,5     
+                    right           pos.    0        67,6     112,5       
+                    down-right      pos.    neg.    112,6     157,5
+                    down            0       neg.    157,6     202,5
+                    down-left       neg.    neg.    202,6     247,5
+                    left            neg.    0       247,6     292,5
+                    top-left        neg.    pos.    292,6     337,5
+
+                */
                 if (!(iUnit.animWalking >= iUnit.animWalkingMax)) {
                     iUnit.animWalking += iUnit.spriteHeight;
                 } else {
