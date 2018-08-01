@@ -4,9 +4,9 @@ let ctx = canvas.getContext("2d");
 let objectId = 0;
 
 function sprite (options) {
-				
+
     var that = {};
-					
+
     that.context = options.context;
     that.width = options.width;
     that.height = options.height;
@@ -50,7 +50,7 @@ class Unit {
 
         // sprite
         this.sprite = new Image ();
-        this.sprite.src = "assets/sprites/grunt.png"; 
+        this.sprite.src = "assets/sprites/grunt.png";
         this.spriteWidth = 73;
         this.spriteHeight = 73;
 
@@ -136,6 +136,9 @@ function loopy (t) {
             iUnit.distanceTraveledX = distanceToTravelX;
             iUnit.distanceTraveledY = distanceToTravelY;
 
+            var angle = Math.atan2(iUnit.targetY - iUnit.y, iUnit.targetX - iUnit.x) * 180 / Math.PI;
+            console.log(angle);
+
             // Walking animation
             iUnit.animPhase++;
             if (iUnit.animPhase >= iUnit.animFramesBetweenPhases) {
@@ -146,9 +149,9 @@ function loopy (t) {
                     The direction will determine the shown animation sprite. One sprite for each direction.
 
                                     dirX    dirY    angleMin  angleMax
-                    top             0       pos.    337,6      22,5     
-                    top-right       pos.    pos.     22,6      67,5     
-                    right           pos.    0        67,6     112,5       
+                    top             0       pos.    337,6      22,5
+                    top-right       pos.    pos.     22,6      67,5
+                    right           pos.    0        67,6     112,5
                     down-right      pos.    neg.    112,6     157,5
                     down            0       neg.    157,6     202,5
                     down-left       neg.    neg.    202,6     247,5
@@ -175,7 +178,7 @@ function loopy (t) {
 
                     iUnit.x = iUnit.x - iUnit.distanceTraveledX;
                     iUnit.y = iUnit.y - iUnit.distanceTraveledY;
-                }   
+                }
             }
         });
     });
