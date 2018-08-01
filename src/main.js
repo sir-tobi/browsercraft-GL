@@ -143,8 +143,7 @@ function loopy (t) {
             iUnit.animPhase++;
             if (iUnit.animPhase >= iUnit.animFramesBetweenPhases) {
                 iUnit.animPhase = 0;
-                /* TODO direction
-
+                /*
                     Each direction has a range of 45 degrees. Top is 0 degree +/- 22,5 (45 / 2).
                     The direction will determine the shown animation sprite. One sprite for each direction.
 
@@ -155,28 +154,35 @@ function loopy (t) {
                     down-right      pos.    neg.      22.6      67.5
                     down            0       neg.      67.6     112.5
                     down-left       neg.    neg.     112.6     157.5
-                    left            neg.    0        157.6     180.0      & -180     -157.5
+                    left            neg.    0        157.6     180.0   & -180   -157.5
                     top-left        neg.    pos.    -157.6    -112.5
 
                 */
+
+                // Determine direction
                 if (angle > -112.5 && angle < -67.6) {
                     iUnit.direction = 0; // top
-                    console.log("top");
                 } else if (angle > -67.5 && angle < -22.6) {
                     iUnit.direction = 1; // top-right
-                    console.log("top-right");
                 } else if (angle > -22.5 && angle < 22.6) {
                     iUnit.direction = 2; // right
-                    console.log("right");
+                } else if (angle > 22.5 && angle < 67.6) {
+                    iUnit.direction = 3; // down-right
+                } else if (angle > 67.5 && angle < 112.6) {
+                    iUnit.direction = 4; // down
+                } else if (angle > 112.5 && angle < 157.6) {
+                    iUnit.direction = 5; // down-left
+                } else if (angle > 157.5 && angle < 180 || angle > -157.5 && angle < -180.1) {
+                    iUnit.direction = 6; // left
+                } else if (angle < -112.5 && angle > -157.6) {
+                    iUnit.direction = 7; // top-left
                 }
 
-
-
-
-
+                // Show next sprite
                 if (!(iUnit.animWalking >= iUnit.animWalkingMax)) {
                     iUnit.animWalking += iUnit.spriteHeight;
                 } else {
+                    // Reset animation after maximum of sprites is reached
                     iUnit.animWalking = 0;
                 }
             }
