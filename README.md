@@ -9,7 +9,7 @@ For the initial setup the game will be a single player game with the opportunity
 Browsercraft is built using plain JavaScript and the html canvas-element.
 
 ### Project Owners
-https://github.com/sir-tobi
+https://github.com/sir-tobi <br/>
 https://github.com/MerKki
 
 ### Keep me updated!
