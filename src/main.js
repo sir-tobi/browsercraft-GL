@@ -53,6 +53,7 @@ class Unit {
         this.sprite.src = "assets/sprites/grunt.png";
         this.spriteWidth = 73;
         this.spriteHeight = 73;
+        this.direction = 0;
 
         // animation
         this.animPhase = 0;
@@ -137,7 +138,6 @@ function loopy (t) {
             iUnit.distanceTraveledY = distanceToTravelY;
 
             var angle = Math.atan2(iUnit.targetY - iUnit.y, iUnit.targetX - iUnit.x) * 180 / Math.PI;
-            console.log(angle);
 
             // Walking animation
             iUnit.animPhase++;
@@ -149,16 +149,31 @@ function loopy (t) {
                     The direction will determine the shown animation sprite. One sprite for each direction.
 
                                     dirX    dirY    angleMin  angleMax
-                    top             0       pos.    337,6      22,5
-                    top-right       pos.    pos.     22,6      67,5
-                    right           pos.    0        67,6     112,5
-                    down-right      pos.    neg.    112,6     157,5
-                    down            0       neg.    157,6     202,5
-                    down-left       neg.    neg.    202,6     247,5
-                    left            neg.    0       247,6     292,5
-                    top-left        neg.    pos.    292,6     337,5
+                    top             0       pos.    -112.6    -67.5  
+                    top-right       pos.    pos.     -67.6    -22.5
+                    right           pos.    0        -22.6     22.5      
+                    down-right      pos.    neg.      22.6      67.5
+                    down            0       neg.      67.6     112.5
+                    down-left       neg.    neg.     112.6     157.5
+                    left            neg.    0        157.6     180.0      & -180     -157.5
+                    top-left        neg.    pos.    -157.6    -112.5
 
                 */
+                if (angle > -112.5 && angle < -67.6) {
+                    iUnit.direction = 0; // top
+                    console.log("top");
+                } else if (angle > -67.5 && angle < -22.6) {
+                    iUnit.direction = 1; // top-right
+                    console.log("top-right");
+                } else if (angle > -22.5 && angle < 22.6) {
+                    iUnit.direction = 2; // right
+                    console.log("right");
+                }
+
+
+
+
+
                 if (!(iUnit.animWalking >= iUnit.animWalkingMax)) {
                     iUnit.animWalking += iUnit.spriteHeight;
                 } else {
@@ -199,8 +214,8 @@ function loopy (t) {
         rect = ctx.fillRect(iUnit.x, iUnit.y, iUnit.width, iUnit.height);
         ctx.drawImage(
             iUnit.sprite,
-            292, // TODO sprite that is used for standing
-            iUnit.animWalking, // TODO sprite that is used for standing
+            iUnit.direction * iUnit.spriteWidth,
+            iUnit.animWalking,
             iUnit.spriteWidth,
             iUnit.spriteHeight,
             iUnit.x,
