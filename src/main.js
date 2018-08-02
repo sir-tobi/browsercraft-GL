@@ -172,7 +172,7 @@ function loopy (t) {
                     iUnit.direction = 4; // down
                 } else if (angle > 112.5 && angle < 157.6) {
                     iUnit.direction = 5; // down-left
-                } else if (angle > 157.5 && angle < 180 || angle > -157.5 && angle < -180.1) {
+                } else if (angle > 157.5 && angle < 180 || angle < -157.5 && angle > -180.1) {
                     iUnit.direction = 6; // left
                 } else if (angle < -112.5 && angle > -157.6) {
                     iUnit.direction = 7; // top-left
