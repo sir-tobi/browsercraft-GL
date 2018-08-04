@@ -6,6 +6,7 @@
 const canvas = document.getElementById("gameArea");
 const ctx = canvas.getContext("2d");
 let objectId = 0;
+let nextLeftClickAction = "";
 
 //// For Debugging
 const DebugFlags = {
@@ -49,6 +50,9 @@ function on_keydown(e) {
     if (Object.keys(_DebugKeysToFlagNames).includes(e.key)) {
         console.log(`DebugFlag '${_DebugKeysToFlagNames[e.key]}' is now set to: ${!DebugFlags[_DebugKeysToFlagNames[e.key]].value}`);
         DebugFlags[_DebugKeysToFlagNames[e.key]].value = !DebugFlags[_DebugKeysToFlagNames[e.key]].value;
+    }
+    if (e.key = "a") {
+        nextLeftClickAction = "attackMove";
     }
 }
 
@@ -98,6 +102,8 @@ class Unit {
         this.animAttacking = 73 * 5;
 
         // attack
+        this.targetUnit = null;
+        this.fixedAggro = false;
         this.attackCooldownTicker = 0;
         this.attackPhase = 0;
         this.attackTarget = null;
@@ -107,7 +113,6 @@ class Unit {
 
     performAttack(enemy) {
         this.attackPhase++;
-        this.isAttacking = true;
         if (this.attackPhase >= this.attackSpeed && this.attackCooldownTicker <= 0) {
             this.attackPhase = 0;
             // Show next sprite
@@ -177,34 +182,73 @@ function on_canvas_click(e) {
         x: e.clientX,
         y: e.clientY
     }
-    let collisionFound = false;
-    units.forEach(unit => {
-        if (doesCollide(clicked, unit)) {
-            collisionFound = true;
-            let doesContain = selectedUnits.find(iSelected => (iSelected.id === unit.id));
-            if (!doesContain) {
-                selectedUnits.push(unit);
-                unit.iSelected = true;
-            }
-        }
-    });
-    if (!collisionFound) {
-        selectedUnits.forEach(unit => {
-            unit.iSelected = false;
+
+    if (nextLeftClickAction === "attackMove") {
+        selectedUnits.forEach((unit, idx) => {
+            nextLeftClickAction = "";
+            unit.isMoving = true;
+            unit.isAggro =  true;
+            unit.targetUnit = null;
+            unit.targetX = e.clientX + (idx * unit.width + 10) - unit.width / 2; // TODO put padding in variable
+            unit.targetY = e.clientY + (idx * unit.height + 10) - unit.height / 2;
         });
-        selectedUnits = [];
+    } else {
+        // Unit selection
+        let collisionFound = false;
+        units.forEach(unit => {
+            if (doesCollide(clicked, unit)) {
+                collisionFound = true;
+                let doesContain = selectedUnits.find(iSelected => (iSelected.id === unit.id));
+                if (!doesContain) {
+                    selectedUnits.push(unit);
+                    unit.iSelected = true;
+                }
+            }
+        });
+        if (!collisionFound) {
+            selectedUnits.forEach(unit => {
+                unit.iSelected = false;
+            });
+            selectedUnits = [];
+        }
     }
+    
+
 }
 
 function on_canvas_rightclick(e) {
     e.preventDefault();
-    selectedUnits.forEach((unit, idx) => {
-        unit.isMoving = true;
-        unit.isAggro =  true;
-        unit.targetUnit = null;
-        unit.targetX = e.clientX + (idx * unit.width + 10) - unit.width / 2; // TODO put padding in variable
-        unit.targetY = e.clientY + (idx * unit.height + 10) - unit.height / 2;
+    // @FIXME Copy pasted from unit selection (left click)
+    const clicked = {
+        width: 1,
+        height: 1,
+        x: e.clientX,
+        y: e.clientY
+    }
+    let collisionTarget = null;
+    units.forEach(unit => {
+        if (doesCollide(clicked, unit)) {
+            collisionTarget = unit;
+            // @FIXME Short circuit missing
+        }
     });
+    if (collisionTarget) {
+        selectedUnits.forEach(unit => {
+            unit.targetUnit = collisionTarget;
+            unit.fixedAggro = true;
+            unit.isAggro = true;
+            console.log(unit.isAggro);
+            console.log(unit.targetUnit);
+        });
+    } else {
+        selectedUnits.forEach((unit, idx) => {
+            unit.isAttacking = false;
+            unit.isAggro =  false;
+            unit.targetUnit = null;
+            unit.targetX = e.clientX + (idx * unit.width + 10) - unit.width / 2; // TODO put padding in variable
+            unit.targetY = e.clientY + (idx * unit.height + 10) - unit.height / 2;
+        });
+    }
 }
 
 function doesCollide (rect1, rect2) {
@@ -220,7 +264,7 @@ function update_attacking (dt) {
         if (!unit.isAggro) {
             return;
         }
-
+        
         let enemy = null;
         let minDistance = null;
         units.forEach(targetUnit => {
@@ -233,18 +277,22 @@ function update_attacking (dt) {
                 }
 
                 // Check for target
-                if (doesCollide(aggroRadius, targetUnit)) {
-                    let vecUnit = new Vec2(unit.x, unit.y);
-                    let vecTarget = new Vec2(targetUnit.x, targetUnit.y);
-                    let distance = vecUnit.subtract(vecTarget);
-                    if (minDistance === null) {
-                        minDistance = distance;
-                        enemy = targetUnit;
+                if (!unit.fixedAggro) {
+                    if (doesCollide(aggroRadius, targetUnit)) {
+                        let vecUnit = new Vec2(unit.x, unit.y);
+                        let vecTarget = new Vec2(targetUnit.x, targetUnit.y);
+                        let distance = vecUnit.subtract(vecTarget);
+                        if (minDistance === null) {
+                            minDistance = distance;
+                            enemy = targetUnit;
+                        }
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            enemy = targetUnit;
+                        }
                     }
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        enemy = targetUnit;
-                    }
+                } else {
+                    enemy = unit.targetUnit;
                 }
             }
         });
@@ -258,11 +306,14 @@ function update_attacking (dt) {
         }
 
         if (unit.targetUnit) {
-            unit.targetX = enemy.x;
-            unit.targetY = enemy.y;
+            unit.targetX = unit.targetUnit.x;
+            unit.targetY = unit.targetUnit.y;
             
             if (doesCollide(attackRadius, enemy)) {
+                unit.isAttacking = true;
                 unit.performAttack(enemy);
+            } else {
+                unit.isAttacking = false;
             }
         }  
     });
