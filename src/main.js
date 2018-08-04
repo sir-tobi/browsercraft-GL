@@ -71,6 +71,8 @@ class Unit {
         this.hp = this.maxHp;
         this.attack = 20;
         this.defense = 2;
+        this.attackSpeed = 10; // per x frames
+        this.attackCooldown = 20;
         this.attackRadius = 20;
         this.effectiveAttackRadius = this.width / 2 + this.attackRadius; // note: always width === height
         this.sightRadius = 150;
@@ -83,13 +85,42 @@ class Unit {
         this.sprite.src = "assets/sprites/grunt.png";
         this.spriteWidth = 73;
         this.spriteHeight = 73;
+        this.animWalkingMax = 73 * 4;
+        this.animAttackingStart = 73 * 4;
+        this.animAttackingMax = 73 * 8;
         this.direction = 0; // @FIXME - should be more descriptive if it is specifically for sprites (we may want/need to save the mathematical direction on Unit)
 
         // animation
+        this.animation = 0;
         this.animPhase = 0;
         this.animFramesBetweenPhases = 9;
         this.animWalking = 0;
-        this.animWalkingMax = 292;
+        this.animAttacking = 73 * 5;
+
+        // attack
+        this.attackCooldownTicker = 0;
+        this.attackPhase = 0;
+        this.attackTarget = null;
+        this.isAggro = false;
+        this.isAttacking = false;
+    }
+
+    performAttack(enemy) {
+        this.attackPhase++;
+        this.isAttacking = true;
+        if (this.attackPhase >= this.attackSpeed && this.attackCooldownTicker <= 0) {
+            this.attackPhase = 0;
+            // Show next sprite
+            if (!(this.animAttacking >= this.animAttackingMax)) {
+                this.animAttacking += this.spriteHeight;
+            } else {
+                // Reset animation after maximum of sprites is reached
+                enemy.hp -= (this.attack - enemy.defense);
+                console.log(enemy.hp);
+                this.attackCooldownTicker = this.attackCooldown;
+                this.animAttacking = this.animAttackingStart;
+            }
+        }
     }
 }
 
@@ -168,8 +199,11 @@ function on_canvas_click(e) {
 function on_canvas_rightclick(e) {
     e.preventDefault();
     selectedUnits.forEach((unit, idx) => {
-        unit.targetX = e.clientX + (idx * unit.width + 10); // TODO put padding in variable
-        unit.targetY = e.clientY + (idx * unit.height + 10);
+        unit.isMoving = true;
+        unit.isAggro =  true;
+        unit.targetUnit = null;
+        unit.targetX = e.clientX + (idx * unit.width + 10) - unit.width / 2; // TODO put padding in variable
+        unit.targetY = e.clientY + (idx * unit.height + 10) - unit.height / 2;
     });
 }
 
@@ -180,10 +214,64 @@ function doesCollide (rect1, rect2) {
         rect1.height + rect1.y > rect2.y);
 }
 
+function update_attacking (dt) {
+    units.forEach(unit => {
+        unit.attackCooldownTicker--;
+        if (!unit.isAggro) {
+            return;
+        }
+
+        let enemy = null;
+        let minDistance = null;
+        units.forEach(targetUnit => {
+            if (unit != targetUnit) {
+                let aggroRadius = {
+                    x: unit.x - unit.sightRadius, //TODO aggro Radius
+                    y: unit.y - unit.sightRadius,
+                    width: unit.effectiveSightRadius *2,
+                    height: unit.effectiveSightRadius *2
+                }
+
+                // Check for target
+                if (doesCollide(aggroRadius, targetUnit)) {
+                    let vecUnit = new Vec2(unit.x, unit.y);
+                    let vecTarget = new Vec2(targetUnit.x, targetUnit.y);
+                    let distance = vecUnit.subtract(vecTarget);
+                    if (minDistance === null) {
+                        minDistance = distance;
+                        enemy = targetUnit;
+                    }
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        enemy = targetUnit;
+                    }
+                }
+            }
+        });
+        unit.targetUnit = enemy;
+
+        let attackRadius = {
+            x: unit.x - unit.attackRadius,
+            y: unit.y - unit.attackRadius,
+            width: unit.effectiveAttackRadius *2,
+            height: unit.effectiveAttackRadius *2
+        }
+
+        if (unit.targetUnit) {
+            unit.targetX = enemy.x;
+            unit.targetY = enemy.y;
+            
+            if (doesCollide(attackRadius, enemy)) {
+                unit.performAttack(enemy);
+            }
+        }  
+    });
+}
+
 function update_movement(dt) {
      // Movement
      units.forEach(unit => {
-        if (unit.x != unit.targetX && unit.y != unit.targetY) {
+        if (unit.x != unit.targetX && unit.y != unit.targetY && !unit.isAttacking) {
             // set new position
             let target = new Vec2(unit.targetX, unit.targetY);
             let position = new Vec2(unit.x, unit.y);
@@ -211,6 +299,7 @@ function update_movement(dt) {
                     direction_normalized = new Vec2(-1, -1).normalize(); // top-left
                 }
             }
+
             let velocity = direction_normalized.multiply(unit.movementSpeed);
             let covered_distance = velocity.multiply(dt);
             if (covered_distance.length() > direction.length()) {
@@ -297,6 +386,7 @@ function update_collision(dt) {
 }
 
 function update(dt) {
+    update_attacking(dt);
     update_movement(dt);
     update_collision(dt);
 }
@@ -311,20 +401,31 @@ function render() {
     flush_canvas()
 
     units.forEach(unit => {
+        // Attack radius
         ctx.fillStyle = "#ff111122";
         rect = ctx.fillRect(unit.x - unit.attackRadius, unit.y - unit.attackRadius, unit.effectiveAttackRadius * 2, unit.effectiveAttackRadius * 2);
+        // Sight radius
         ctx.fillStyle = "#11991111";
         rect = ctx.fillRect(unit.x - unit.sightRadius, unit.y - unit.sightRadius, unit.effectiveSightRadius * 2, unit.effectiveSightRadius * 2);
+        // Selection border
         if (unit.iSelected) {
             ctx.strokeStyle = "#11ff11ff";
             rect = ctx.strokeRect(unit.x - unit.selectionRadius, unit.y - unit.selectionRadius, unit.effectiveSelectionRadius * 2, unit.effectiveSelectionRadius * 2);
         }
+        // Collision radius
         ctx.fillStyle = "#11111122";
         rect = ctx.fillRect(unit.x, unit.y, unit.width, unit.height);
+
+        if (unit.isAttacking) {
+            unit.animation = unit.animAttacking;
+        } else {
+            unit.animation = unit.animWalking;
+        }
+        // Unit sprite
         ctx.drawImage(
             unit.sprite,
             unit.direction * unit.spriteWidth,
-            unit.animWalking,
+            unit.animation,
             unit.spriteWidth,
             unit.spriteHeight,
             unit.x,
