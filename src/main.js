@@ -116,6 +116,10 @@ class Unit {
         this.attackTarget = null;
         this.isAggro = false;
         this.isAttacking = false;
+
+        // reaction
+        this.reactionTime = 30; // Brainfart in frames
+        this.reactionTimeCount = 0;
     }
 
     performAttack(enemy) {
@@ -195,9 +199,11 @@ function on_canvas_click(e) {
         canvas.classList.toggle("attackMove");
         selectedUnits.forEach((unit, idx) => {
             nextLeftClickAction = "";
+            unit.reactionTimeCount = 0;
             unit.isMoving = true;
             unit.isAggro =  true;
             unit.targetUnit = null;
+            unit.fixedAggro = false;
             unit.targetX = e.clientX + (idx * unit.width + 10) - unit.width / 2; // TODO put padding in variable
             unit.targetY = e.clientY + (idx * unit.height + 10) - unit.height / 2;
         });
@@ -248,6 +254,7 @@ function on_canvas_rightclick(e) {
     if (collisionTarget) {
         selectedUnits.forEach(unit => {
             unit.targetUnit = collisionTarget;
+            unit.reactionTimeCount = 0;
             unit.fixedAggro = true;
             unit.isAggro = true;
             console.log(unit.isAggro);
@@ -255,6 +262,7 @@ function on_canvas_rightclick(e) {
         });
     } else {
         selectedUnits.forEach((unit, idx) => {
+            unit.reactionTimeCount = 0;
             unit.isAttacking = false;
             unit.isAggro =  false;
             unit.targetUnit = null;
@@ -292,16 +300,19 @@ function update_attacking (dt) {
                 // Check for target
                 if (!unit.fixedAggro) {
                     if (doesCollide(aggroRadius, targetUnit)) {
-                        let vecUnit = new Vec2(unit.x, unit.y);
-                        let vecTarget = new Vec2(targetUnit.x, targetUnit.y);
-                        let distance = vecUnit.subtract(vecTarget);
-                        if (minDistance === null) {
-                            minDistance = distance;
-                            enemy = targetUnit;
-                        }
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            enemy = targetUnit;
+                        unit.reactionTimeCount++;
+                        if (unit.reactionTimeCount >= unit.reactionTime) {
+                            let vecUnit = new Vec2(unit.x, unit.y);
+                            let vecTarget = new Vec2(targetUnit.x, targetUnit.y);
+                            let distance = vecUnit.subtract(vecTarget);
+                            if (minDistance === null) {
+                                minDistance = distance;
+                                enemy = targetUnit;
+                            }
+                            if (distance < minDistance) {
+                                minDistance = distance;
+                                enemy = targetUnit;
+                            }
                         }
                     }
                 } else {
