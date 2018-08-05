@@ -7,6 +7,7 @@ const canvas = document.getElementById("gameArea");
 const ctx = canvas.getContext("2d");
 let objectId = 0;
 let nextLeftClickAction = "";
+let humanPlayer = 1;
 
 //// For Debugging
 const DebugFlags = {
@@ -64,8 +65,9 @@ function on_keydown(e) {
 }
 
 class Unit {
-    constructor (x, y) {
+    constructor (x, y, player) {
         this.id = objectId++;
+        this.player = player;
         this.movementSpeed = 300;
         this.x = x;
         this.y = y;
@@ -93,13 +95,15 @@ class Unit {
 
         // sprite
         this.sprite = new Image ();
-        this.sprite.src = "assets/sprites/grunt.png";
+        this.sprite.src = "assets/sprites/grunt" + this.player + ".png";
         this.spriteWidth = 73;
         this.spriteHeight = 73;
         this.animWalkingMax = 73 * 4;
         this.animAttackingStart = 73 * 4;
         this.animAttackingMax = 73 * 8;
         this.direction = 0; // @FIXME - should be more descriptive if it is specifically for sprites (we may want/need to save the mathematical direction on Unit)
+        this.spriteRenderWidth = 100;
+        this.spriteRenderHeight = 100;
 
         // animation
         this.animation = 0;
@@ -132,7 +136,7 @@ class Unit {
             } else {
                 // Reset animation after maximum of sprites is reached
                 enemy.hp -= (this.attack - enemy.defense);
-                console.log(enemy.hp);
+                enemy.isAggro = true;
                 this.attackCooldownTicker = this.attackCooldown;
                 this.animAttacking = this.animAttackingStart;
             }
@@ -176,13 +180,13 @@ class Vec2 {
     }
 }
 
-createUnit(100, 100);
-createUnit(400, 400);
-createUnit(700, 300);
+createUnit(100, 100, 1);
+createUnit(400, 400, 1);
+createUnit(700, 300, 2);
 
 
-function createUnit (x, y) {
-    let unit = new Unit(x, y);
+function createUnit (x, y, player) {
+    let unit = new Unit(x, y, player);
     units.push(unit);
     collidables.push(unit);
 }
@@ -214,7 +218,7 @@ function on_canvas_click(e) {
             if (doesCollide(clicked, unit)) {
                 collisionFound = true;
                 let doesContain = selectedUnits.find(iSelected => (iSelected.id === unit.id));
-                if (!doesContain) {
+                if (!doesContain && unit.player === humanPlayer) {
                     selectedUnits.push(unit);
                     unit.iSelected = true;
                 }
@@ -255,10 +259,14 @@ function on_canvas_rightclick(e) {
         selectedUnits.forEach(unit => {
             unit.targetUnit = collisionTarget;
             unit.reactionTimeCount = 0;
-            unit.fixedAggro = true;
-            unit.isAggro = true;
-            console.log(unit.isAggro);
-            console.log(unit.targetUnit);
+            if (unit.player !== collisionTarget.player) {
+                unit.fixedAggro = true;
+                unit.isAggro = true;
+            } else {
+                // @FIXME let unit follow
+                unit.fixedAggro = false;
+                unit.isAggro = false;
+            }
         });
     } else {
         selectedUnits.forEach((unit, idx) => {
@@ -300,18 +308,20 @@ function update_attacking (dt) {
                 // Check for target
                 if (!unit.fixedAggro) {
                     if (doesCollide(aggroRadius, targetUnit)) {
-                        unit.reactionTimeCount++;
-                        if (unit.reactionTimeCount >= unit.reactionTime) {
-                            let vecUnit = new Vec2(unit.x, unit.y);
-                            let vecTarget = new Vec2(targetUnit.x, targetUnit.y);
-                            let distance = vecUnit.subtract(vecTarget);
-                            if (minDistance === null) {
-                                minDistance = distance;
-                                enemy = targetUnit;
-                            }
-                            if (distance < minDistance) {
-                                minDistance = distance;
-                                enemy = targetUnit;
+                        if (unit.player !== targetUnit.player) {
+                            unit.reactionTimeCount++;
+                            if (unit.reactionTimeCount >= unit.reactionTime) {
+                                let vecUnit = new Vec2(unit.x, unit.y);
+                                let vecTarget = new Vec2(targetUnit.x, targetUnit.y);
+                                let distance = vecUnit.subtract(vecTarget);
+                                if (minDistance === null) {
+                                    minDistance = distance;
+                                    enemy = targetUnit;
+                                }
+                                if (distance < minDistance) {
+                                    minDistance = distance;
+                                    enemy = targetUnit;
+                                }
                             }
                         }
                     }
@@ -503,10 +513,10 @@ function render() {
             unit.animation,
             unit.spriteWidth,
             unit.spriteHeight,
-            unit.x,
-            unit.y,
-            unit.width,
-            unit.height
+            unit.x - (unit.spriteRenderWidth - unit.width) /2,
+            unit.y - (unit.spriteRenderHeight - unit.height) /2,
+            unit.spriteRenderWidth,
+            unit.spriteRenderHeight
         );
     });
 }
