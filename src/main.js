@@ -52,7 +52,14 @@ function on_keydown(e) {
         DebugFlags[_DebugKeysToFlagNames[e.key]].value = !DebugFlags[_DebugKeysToFlagNames[e.key]].value;
     }
     if (e.key = "a") {
-        nextLeftClickAction = "attackMove";
+        // @FIXME
+        if (nextLeftClickAction === "attackMove") {
+            canvas.classList.toggle("attackMove");
+            nextLeftClickAction = "";
+        } else if (selectedUnits.length > 0) {
+            canvas.classList.toggle("attackMove");
+            nextLeftClickAction = "attackMove";
+        }
     }
 }
 
@@ -167,6 +174,7 @@ class Vec2 {
 
 createUnit(100, 100);
 createUnit(400, 400);
+createUnit(700, 300);
 
 
 function createUnit (x, y) {
@@ -184,6 +192,7 @@ function on_canvas_click(e) {
     }
 
     if (nextLeftClickAction === "attackMove") {
+        canvas.classList.toggle("attackMove");
         selectedUnits.forEach((unit, idx) => {
             nextLeftClickAction = "";
             unit.isMoving = true;
@@ -212,13 +221,17 @@ function on_canvas_click(e) {
             selectedUnits = [];
         }
     }
-    
-
 }
 
 function on_canvas_rightclick(e) {
     e.preventDefault();
     // @FIXME Copy pasted from unit selection (left click)
+    if (nextLeftClickAction === "attackMove") {
+        canvas.classList.toggle("attackMove");
+    }
+
+    nextLeftClickAction = "";
+
     const clicked = {
         width: 1,
         height: 1,

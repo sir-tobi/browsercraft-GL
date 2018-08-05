@@ -1,8 +1,14 @@
 body {
     margin: 0;
-    background-color: #222;
+    background-color: #222;    
 }
+
 canvas {
     width: 1280px;
     height: 720px;
+    cursor: url("../assets/gui/cursor.png"), default;
+}
+
+.attackMove {
+    cursor: url("../assets/gui/cursor_atk.png"), default;
 }
