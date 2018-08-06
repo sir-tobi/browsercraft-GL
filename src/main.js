@@ -77,7 +77,7 @@ class Unit {
         this.height = 60;
         this.distanceTraveledX = 0;
         this.distanceTraveledY = 0;
-        this.iSelected =false;
+        this.isSelected =false;
 
         // stats
         this.maxHp = 100;
@@ -101,6 +101,7 @@ class Unit {
         this.animWalkingMax = 73 * 4;
         this.animAttackingStart = 73 * 4;
         this.animAttackingMax = 73 * 8;
+        this.animDead = 73 * 10;
         this.direction = 0; // @FIXME - should be more descriptive if it is specifically for sprites (we may want/need to save the mathematical direction on Unit)
         this.spriteRenderWidth = 100;
         this.spriteRenderHeight = 100;
@@ -120,6 +121,7 @@ class Unit {
         this.attackTarget = null;
         this.isAggro = false;
         this.isAttacking = false;
+        this.isDead = false;
 
         // reaction
         this.reactionTime = 30; // Brainfart in frames
@@ -204,7 +206,6 @@ function on_canvas_click(e) {
         selectedUnits.forEach((unit, idx) => {
             nextLeftClickAction = "";
             unit.reactionTimeCount = 0;
-            unit.isMoving = true;
             unit.isAggro =  true;
             unit.targetUnit = null;
             unit.fixedAggro = false;
@@ -217,16 +218,16 @@ function on_canvas_click(e) {
         units.forEach(unit => {
             if (doesCollide(clicked, unit)) {
                 collisionFound = true;
-                let doesContain = selectedUnits.find(iSelected => (iSelected.id === unit.id));
+                let doesContain = selectedUnits.find(isSelected => (isSelected.id === unit.id));
                 if (!doesContain && unit.player === humanPlayer) {
                     selectedUnits.push(unit);
-                    unit.iSelected = true;
+                    unit.isSelected = true;
                 }
             }
         });
         if (!collisionFound) {
             selectedUnits.forEach(unit => {
-                unit.iSelected = false;
+                unit.isSelected = false;
             });
             selectedUnits = [];
         }
@@ -308,7 +309,7 @@ function update_attacking (dt) {
                 // Check for target
                 if (!unit.fixedAggro) {
                     if (doesCollide(aggroRadius, targetUnit)) {
-                        if (unit.player !== targetUnit.player) {
+                        if (unit.player !== targetUnit.player && !targetUnit.isDead) {
                             unit.reactionTimeCount++;
                             if (unit.reactionTimeCount >= unit.reactionTime) {
                                 let vecUnit = new Vec2(unit.x, unit.y);
@@ -343,7 +344,7 @@ function update_attacking (dt) {
             unit.targetX = unit.targetUnit.x;
             unit.targetY = unit.targetUnit.y;
             
-            if (doesCollide(attackRadius, enemy)) {
+            if (doesCollide(attackRadius, enemy) && !enemy.isDead) {
                 unit.isAttacking = true;
                 unit.performAttack(enemy);
             } else {
@@ -470,7 +471,21 @@ function update_collision(dt) {
     });
 }
 
+function update_dying(dt) {
+    units.forEach(unit => {
+        if (unit.hp <= 0 ) {
+            unit.isDead = true;
+            unit.isAggro = false;
+            unit.isAttacking = false;
+            unit.fixedAggro = false;
+            unit.targetX = unit.x;
+            unit.targetY = unit.y;
+        }
+    });
+}
+
 function update(dt) {
+    update_dying(dt);
     update_attacking(dt);
     update_movement(dt);
     update_collision(dt);
@@ -493,7 +508,7 @@ function render() {
         ctx.fillStyle = "#11991111";
         rect = ctx.fillRect(unit.x - unit.sightRadius, unit.y - unit.sightRadius, unit.effectiveSightRadius * 2, unit.effectiveSightRadius * 2);
         // Selection border
-        if (unit.iSelected) {
+        if (unit.isSelected) {
             ctx.strokeStyle = "#11ff11ff";
             rect = ctx.strokeRect(unit.x - unit.selectionRadius, unit.y - unit.selectionRadius, unit.effectiveSelectionRadius * 2, unit.effectiveSelectionRadius * 2);
         }
@@ -506,6 +521,12 @@ function render() {
         } else {
             unit.animation = unit.animWalking;
         }
+
+        if (unit.isDead) {
+            unit.direction = 0;
+            unit.animation = unit.animDead;
+        }
+
         // Unit sprite
         ctx.drawImage(
             unit.sprite,
