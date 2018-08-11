@@ -282,22 +282,11 @@ function on_canvas_rightclick(e) {
 
     nextLeftClickAction = "";
     const clicked_unit = units.find(unit => (doesPointCollideRect(mousePos, unit.collisionRect)));
-    const clickedUnitIsSelected = selectedUnits.find(selectedUnit => (selectedUnit.id === clicked_unit.id));
-    if (!clicked_unit || clickedUnitIsSelected) {
-        selectedUnits.forEach((unit, idx) => {
-            unit.reactionTimeCount = 0;
-            unit.isAttacking = false;
-            unit.isAggro =  false;
-            unit.targetUnit = null;
-            // @Incomplete - formation logic
-            unit.targetX = mousePos.x + (idx * (unit.width + 10)); // TODO put padding in variable
-            unit.targetY = mousePos.y + (idx * (unit.height + 10));
-        });
-    } else {
+    if (clicked_unit) {
+        console.log('unit clicked');
         selectedUnits.forEach(unit => {
             unit.targetUnit = clicked_unit;
             unit.reactionTimeCount = 0;
-            
             if (unit.controller !== clicked_unit.controller) {
                 unit.fixedAggro = true;
                 unit.isAggro = true;
@@ -306,6 +295,16 @@ function on_canvas_rightclick(e) {
                 unit.fixedAggro = false;
                 unit.isAggro = false;
             }
+        });
+    } else {
+        selectedUnits.forEach((unit, idx) => {
+            unit.reactionTimeCount = 0;
+            unit.isAttacking = false;
+            unit.isAggro =  false;
+            unit.targetUnit = null;
+            // @Incomplete - formation logic
+            unit.targetX = mousePos.x + (idx * (unit.width + 10)); // TODO put padding in variable
+            unit.targetY = mousePos.y + (idx * (unit.height + 10));
         });
     }
 }
