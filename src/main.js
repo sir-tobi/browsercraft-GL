@@ -2,19 +2,8 @@
 // @Incomplete - some functionality is missing or could be added/enhanced
 // @FIXME - not necessarily broken but should be changed
 
-
-const canvas = document.getElementById("gameArea");
-const ctx = canvas.getContext("2d");
-let objectId = 0;
-let nextLeftClickAction = "";
-let humanPlayer = 1;
-
 //// For Debugging
 const DebugFlags = {
-    roundPositionUpdateToFullPixels: {
-        value: false,
-        key: 'r'
-    },
     moveOnlyAlong8CardinalDirections: {
         value: false,
         key: 'c'
@@ -27,21 +16,15 @@ Object.keys(DebugFlags).forEach(flag => {
 console.log(`Initial DebugFlags\n${JSON.stringify(DebugFlags, null, 4)}`);
 //// For Debugging END
 
-function sprite (options) {
 
-    var that = {};
 
-    that.context = options.context;
-    that.width = options.width;
-    that.height = options.height;
-    that.image = options.image;
-
-    return that;
-}
-
+const canvas = document.getElementById("gameArea");
+const ctx = canvas.getContext("2d");
+let nextLeftClickAction = "";
+let humanPlayer = 1;
 const units = [];
 const collidables = [];
-let selectedUnits = [];
+const selectedUnits = [];
 
 canvas.addEventListener('click', on_canvas_click, false);
 canvas.addEventListener('contextmenu', on_canvas_rightclick, false);
@@ -64,38 +47,41 @@ function on_keydown(e) {
     }
 }
 
-class Unit {
-    constructor (x, y, player) {
-        this.id = objectId++;
-        this.player = player;
-        this.movementSpeed = 300;
+
+class Obj {
+    constructor() {
+        this.id = Obj._idCounter++;
+    }
+}
+Obj._idCounter = 0;
+
+class Unit extends Obj {
+    constructor(x, y, owner) {
+        super();
+        this.owner = owner;
+        this.controller = owner;
         this.x = x;
         this.y = y;
         this.targetX = x;
         this.targetY = y;
+        this.collisionRadius = 30;
+        this.selectionRadius = this.collisionRadius;
         this.width = 60;
         this.height = 60;
         this.distanceTraveledX = 0;
         this.distanceTraveledY = 0;
-        this.isSelected =false;
-
+        this.isSelected = false;
+        
         // stats
         this.maxHp = 100;
         this.hp = this.maxHp;
-        this.attack = 20;
-        this.defense = 2;
-        this.attackSpeed = 10; // per x frames
-        this.attackCooldown = 20;
-        this.attackRadius = 20;
-        this.effectiveAttackRadius = this.width / 2 + this.attackRadius; // note: always width === height
-        this.sightRadius = 150;
-        this.effectiveSightRadius = this.width / 2 + this.sightRadius;
-        this.selectionRadius = 0;
-        this.effectiveSelectionRadius = this.width / 2 + this.selectionRadius;
-
+        this.movementSpeed = 300;
+        this.sightRadius = 180;
+        this.aggroRadius = this.sightRadius;
+        
         // sprite
         this.sprite = new Image ();
-        this.sprite.src = "assets/sprites/grunt" + this.player + ".png";
+        this.sprite.src = "assets/sprites/grunt" + this.owner + ".png";
         this.spriteWidth = 73;
         this.spriteHeight = 73;
         this.animWalkingMax = 73 * 4;
@@ -105,15 +91,20 @@ class Unit {
         this.direction = 0; // @FIXME - should be more descriptive if it is specifically for sprites (we may want/need to save the mathematical direction on Unit)
         this.spriteRenderWidth = 100;
         this.spriteRenderHeight = 100;
-
+        
         // animation
         this.animation = 0;
         this.animPhase = 0;
         this.animFramesBetweenPhases = 9;
         this.animWalking = 0;
         this.animAttacking = 73 * 5;
-
+        
         // attack
+        this.attackRadius = 50;
+        this.attack = 20;
+        this.defense = 2;
+        this.attackSpeed = 10; // per x frames
+        this.attackCooldown = 20;
         this.targetUnit = null;
         this.fixedAggro = false;
         this.attackCooldownTicker = 0;
@@ -122,10 +113,42 @@ class Unit {
         this.isAggro = false;
         this.isAttacking = false;
         this.isDead = false;
-
+        
         // reaction
         this.reactionTime = 30; // Brainfart in frames
         this.reactionTimeCount = 0;
+    }
+    
+    get collisionRect() {
+        return this._getRectFromRadius(this.collisionRadius);
+    }
+
+    get sightRect() {
+        return this._getRectFromRadius(this.sightRadius);
+    }
+
+    get aggroRect() {
+        return this._getRectFromRadius(this.aggroRadius);
+    }
+    
+    get attackRect() {
+        return this._getRectFromRadius(this.attackRadius);
+    }
+
+    _getRectFromRadius(radius) {
+        const x = this.x - radius;
+        const y = this.y - radius;
+        const sideLength = radius * 2;
+        return {
+            x: x,
+            y: y,
+            width: sideLength,
+            height: sideLength,
+            left: x,
+            top: y,
+            right: x + sideLength,
+            bottom: y + sideLength,
+        };
     }
 
     performAttack(enemy) {
@@ -145,6 +168,7 @@ class Unit {
         }
     }
 }
+
 
 // @Incomplete if we want a featurecomplete, bugfree (and cornercase respecting) vector class we should use an existing library
 class Vec2 {
@@ -187,19 +211,23 @@ createUnit(400, 400, 1);
 createUnit(700, 300, 2);
 
 
-function createUnit (x, y, player) {
-    let unit = new Unit(x, y, player);
+function createUnit (x, y, owner) {
+    let unit = new Unit(x, y, owner);
     units.push(unit);
     collidables.push(unit);
 }
 
+function getMousePos(e) {
+    const canvasRect = canvas.getBoundingClientRect();
+    return {
+        x: e.clientX - canvasRect.x,
+        y: e.clientY - canvasRect.y,
+    };
+}
+
 function on_canvas_click(e) {
-    const clicked = {
-        width: 1,
-        height: 1,
-        x: e.clientX,
-        y: e.clientY
-    }
+    e.preventDefault();
+    const mousePos = getMousePos(e);
 
     if (nextLeftClickAction === "attackMove") {
         canvas.classList.toggle("attackMove");
@@ -209,58 +237,57 @@ function on_canvas_click(e) {
             unit.isAggro =  true;
             unit.targetUnit = null;
             unit.fixedAggro = false;
-            unit.targetX = e.clientX + (idx * unit.width + 10) - unit.width / 2; // TODO put padding in variable
-            unit.targetY = e.clientY + (idx * unit.height + 10) - unit.height / 2;
+            // @Incomplete - formation logic
+            unit.targetX = mousePos.x + (idx * (unit.width + 10)); // TODO put padding in variable
+            unit.targetY = mousePos.y + (idx * (unit.height + 10));
         });
     } else {
-        // Unit selection
-        let collisionFound = false;
-        units.forEach(unit => {
-            if (doesCollide(clicked, unit)) {
-                collisionFound = true;
-                let doesContain = selectedUnits.find(isSelected => (isSelected.id === unit.id));
-                if (!doesContain && unit.player === humanPlayer) {
-                    selectedUnits.push(unit);
-                    unit.isSelected = true;
-                }
-            }
-        });
-        if (!collisionFound) {
-            selectedUnits.forEach(unit => {
-                unit.isSelected = false;
-            });
-            selectedUnits = [];
+        const clicked_unit = units.find(unit => (doesPointCollideRect(mousePos, unit.collisionRect)));
+        const ground_clicked = !clicked_unit;
+        if (ground_clicked) {
+            deselectUnits();
+        } else {
+            selectUnit(clicked_unit);
         }
+    }
+}
+
+function deselectUnits() {
+    selectedUnits.forEach(selectedUnit => {
+        selectedUnit.isSelected = false;
+    });
+    selectedUnits.splice(0, selectedUnits.length); // empty the array
+}
+
+function selectUnit(unit) {
+    const unit_already_selected = selectedUnits.find(selectedUnit => (selectedUnit.id === unit.id));
+    if (unit_already_selected) {
+        return;
+    }
+
+    if (unit.controller === humanPlayer) {
+        selectedUnits.push(unit);
+        unit.isSelected = true;
     }
 }
 
 function on_canvas_rightclick(e) {
     e.preventDefault();
+    const mousePos = getMousePos(e);
+
     // @FIXME Copy pasted from unit selection (left click)
     if (nextLeftClickAction === "attackMove") {
         canvas.classList.toggle("attackMove");
     }
 
     nextLeftClickAction = "";
-
-    const clicked = {
-        width: 1,
-        height: 1,
-        x: e.clientX,
-        y: e.clientY
-    }
-    let collisionTarget = null;
-    units.forEach(unit => {
-        if (doesCollide(clicked, unit)) {
-            collisionTarget = unit;
-            // @FIXME Short circuit missing
-        }
-    });
-    if (collisionTarget) {
+    const clicked_unit = units.find(unit => (doesPointCollideRect(mousePos, unit.collisionRect)));
+    if (clicked_unit) {
+        console.log('unit clicked');
         selectedUnits.forEach(unit => {
-            unit.targetUnit = collisionTarget;
+            unit.targetUnit = clicked_unit;
             unit.reactionTimeCount = 0;
-            if (unit.player !== collisionTarget.player) {
+            if (unit.controller !== clicked_unit.controller) {
                 unit.fixedAggro = true;
                 unit.isAggro = true;
             } else {
@@ -275,19 +302,29 @@ function on_canvas_rightclick(e) {
             unit.isAttacking = false;
             unit.isAggro =  false;
             unit.targetUnit = null;
-            unit.targetX = e.clientX + (idx * unit.width + 10) - unit.width / 2; // TODO put padding in variable
-            unit.targetY = e.clientY + (idx * unit.height + 10) - unit.height / 2;
+            // @Incomplete - formation logic
+            unit.targetX = mousePos.x + (idx * (unit.width + 10)); // TODO put padding in variable
+            unit.targetY = mousePos.y + (idx * (unit.height + 10));
         });
     }
 }
 
-function doesCollide (rect1, rect2) {
-    return (rect1.x < rect2.x + rect2.width &&
-        rect1.x + rect1.width > rect2.x &&
-        rect1.y < rect2.y + rect2.height &&
-        rect1.height + rect1.y > rect2.y);
+function doesRectCollideRect(r1, r2) {
+    return r1.left   < r2.right
+        && r1.right  > r2.left
+        && r1.top    < r2.bottom
+        && r1.bottom > r2.top;
 }
 
+function doesPointCollideRect(p, r) {
+    return p.x > r.left
+        && p.y > r.top
+        && p.x < r.right
+        && p.y < r.bottom;
+}
+
+
+//// update functions
 function update_attacking (dt) {
     units.forEach(unit => {
         unit.attackCooldownTicker--;
@@ -298,18 +335,11 @@ function update_attacking (dt) {
         let enemy = null;
         let minDistance = null;
         units.forEach(targetUnit => {
-            if (unit != targetUnit) {
-                let aggroRadius = {
-                    x: unit.x - unit.sightRadius, //TODO aggro Radius
-                    y: unit.y - unit.sightRadius,
-                    width: unit.effectiveSightRadius *2,
-                    height: unit.effectiveSightRadius *2
-                }
-
+            if (unit.id !== targetUnit.id) {
                 // Check for target
                 if (!unit.fixedAggro) {
-                    if (doesCollide(aggroRadius, targetUnit)) {
-                        if (unit.player !== targetUnit.player && !targetUnit.isDead) {
+                    if (doesRectCollideRect(unit.aggroRect, targetUnit.collisionRect)) {
+                        if (unit.controller !== targetUnit.controller && !targetUnit.isDead) {
                             unit.reactionTimeCount++;
                             if (unit.reactionTimeCount >= unit.reactionTime) {
                                 let vecUnit = new Vec2(unit.x, unit.y);
@@ -333,18 +363,11 @@ function update_attacking (dt) {
         });
         unit.targetUnit = enemy;
 
-        let attackRadius = {
-            x: unit.x - unit.attackRadius,
-            y: unit.y - unit.attackRadius,
-            width: unit.effectiveAttackRadius *2,
-            height: unit.effectiveAttackRadius *2
-        }
-
         if (unit.targetUnit) {
             unit.targetX = unit.targetUnit.x;
             unit.targetY = unit.targetUnit.y;
             
-            if (doesCollide(attackRadius, enemy) && !enemy.isDead) {
+            if (doesRectCollideRect(unit.attackRect, enemy.collisionRect) && !enemy.isDead) {
                 unit.isAttacking = true;
                 unit.performAttack(enemy);
             } else {
@@ -396,10 +419,6 @@ function update_movement(dt) {
             }
             unit.x += covered_distance.x;
             unit.y += covered_distance.y;
-            if (DebugFlags.roundPositionUpdateToFullPixels.value) {
-                unit.x = Math.round(unit.x);
-                unit.y = Math.round(unit.y);
-            }
 
 
             // Walking animation
@@ -457,15 +476,17 @@ function update_movement(dt) {
 function update_collision(dt) {
     // Collision Pass
     units.forEach(unit => {
-        collidables.forEach(iCollidable => {
-            if (unit != iCollidable) {
-                if (doesCollide(unit, iCollidable)) {
-                    unit.targetX = unit.x;
-                    unit.targetY = unit.y;
+        collidables.forEach(collidable => {
+            if (unit.id === collidable.id) {
+                return;
+            }
 
-                    unit.x = unit.x - unit.distanceTraveledX;
-                    unit.y = unit.y - unit.distanceTraveledY;
-                }
+            if (doesRectCollideRect(unit.collisionRect, collidable.collisionRect)) {
+                unit.targetX = unit.x;
+                unit.targetY = unit.y;
+
+                unit.x = unit.x - unit.distanceTraveledX;
+                unit.y = unit.y - unit.distanceTraveledY;
             }
         });
     });
@@ -492,29 +513,20 @@ function update(dt) {
 }
 
 
-function flush_canvas() {
+//// render functions
+function flushCanvas() {
     ctx.fillStyle = "#C5C19Cff";
     ctx.fillRect(0,0, ctx.canvas.width, ctx.canvas.height);
 }
 
-function render() {
-    flush_canvas()
-
+function renderUnits() {
     units.forEach(unit => {
-        // Attack radius
-        ctx.fillStyle = "#ff111122";
-        rect = ctx.fillRect(unit.x - unit.attackRadius, unit.y - unit.attackRadius, unit.effectiveAttackRadius * 2, unit.effectiveAttackRadius * 2);
-        // Sight radius
-        ctx.fillStyle = "#11991111";
-        rect = ctx.fillRect(unit.x - unit.sightRadius, unit.y - unit.sightRadius, unit.effectiveSightRadius * 2, unit.effectiveSightRadius * 2);
-        // Selection border
+        fillRect(unit.collisionRect, '#11111122');
+        fillRect(unit.attackRect, '#ff111122');
+        fillRect(unit.sightRect, '#11991111');
         if (unit.isSelected) {
-            ctx.strokeStyle = "#11ff11ff";
-            rect = ctx.strokeRect(unit.x - unit.selectionRadius, unit.y - unit.selectionRadius, unit.effectiveSelectionRadius * 2, unit.effectiveSelectionRadius * 2);
+            strokeRect(unit.collisionRect, '#11ff11ff');
         }
-        // Collision radius
-        ctx.fillStyle = "#11111122";
-        rect = ctx.fillRect(unit.x, unit.y, unit.width, unit.height);
 
         if (unit.isAttacking) {
             unit.animation = unit.animAttacking;
@@ -534,15 +546,31 @@ function render() {
             unit.animation,
             unit.spriteWidth,
             unit.spriteHeight,
-            unit.x - (unit.spriteRenderWidth - unit.width) /2,
-            unit.y - (unit.spriteRenderHeight - unit.height) /2,
+            unit.x - unit.collisionRadius - (unit.spriteRenderHeight - unit.height) / 2,
+            unit.y - unit.collisionRadius - (unit.spriteRenderWidth - unit.width) / 2,
             unit.spriteRenderWidth,
             unit.spriteRenderHeight
         );
     });
 }
 
+function fillRect(r, fillStyle) {
+    ctx.fillStyle = fillStyle;
+    ctx.fillRect(r.x, r.y, r.width, r.height);
+}
 
+function strokeRect(r, strokeStyle) {
+    ctx.strokeStyle = strokeStyle;
+    ctx.strokeRect(r.x, r.y, r.width, r.height);
+}
+
+function render() {
+    flushCanvas();
+    renderUnits();
+}
+
+
+//// Main Loop
 let lastTimeStamp = 0;
 function tick(timeStamp /* DOMHighResTimeStamp */) {
     let dt = (timeStamp - lastTimeStamp) / 1000;
