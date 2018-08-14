@@ -21,16 +21,16 @@ console.log(`Initial DebugFlags\n${JSON.stringify(DebugFlags, null, 4)}`);
 const canvas = document.getElementById("gameArea");
 const ctx = canvas.getContext("2d");
 let nextLeftClickAction = "";
-let humanPlayer = 1;
+const humanPlayer = 1;
 const units = [];
 const collidables = [];
 const selectedUnits = [];
 
-canvas.addEventListener('click', on_canvas_click, false);
-canvas.addEventListener('contextmenu', on_canvas_rightclick, false);
-window.addEventListener('keydown', on_keydown);
+canvas.addEventListener('click', handleLeftClick, false);
+canvas.addEventListener('contextmenu', handleRightClick, false);
+window.addEventListener('keydown', handleKeyDown);
 
-function on_keydown(e) {
+function handleKeyDown(e) {
     if (Object.keys(_DebugKeysToFlagNames).includes(e.key)) {
         console.log(`DebugFlag '${_DebugKeysToFlagNames[e.key]}' is now set to: ${!DebugFlags[_DebugKeysToFlagNames[e.key]].value}`);
         DebugFlags[_DebugKeysToFlagNames[e.key]].value = !DebugFlags[_DebugKeysToFlagNames[e.key]].value;
@@ -71,14 +71,14 @@ class Unit extends Obj {
         this.distanceTraveledX = 0;
         this.distanceTraveledY = 0;
         this.isSelected = false;
-        
+
         // stats
         this.maxHp = 100;
         this.hp = this.maxHp;
         this.movementSpeed = 300;
         this.sightRadius = 180;
         this.aggroRadius = this.sightRadius;
-        
+
         // sprite
         this.sprite = new Image ();
         this.sprite.src = "assets/sprites/grunt" + this.owner + ".png";
@@ -91,14 +91,14 @@ class Unit extends Obj {
         this.direction = 0; // @FIXME - should be more descriptive if it is specifically for sprites (we may want/need to save the mathematical direction on Unit)
         this.spriteRenderWidth = 100;
         this.spriteRenderHeight = 100;
-        
+
         // animation
         this.animation = 0;
         this.animPhase = 0;
         this.animFramesBetweenPhases = 9;
         this.animWalking = 0;
         this.animAttacking = 73 * 5;
-        
+
         // attack
         this.attackRadius = 50;
         this.attack = 20;
@@ -113,12 +113,12 @@ class Unit extends Obj {
         this.isAggro = false;
         this.isAttacking = false;
         this.isDead = false;
-        
+
         // reaction
         this.reactionTime = 30; // Brainfart in frames
         this.reactionTimeCount = 0;
     }
-    
+
     get collisionRect() {
         return this._getRectFromRadius(this.collisionRadius);
     }
@@ -130,7 +130,7 @@ class Unit extends Obj {
     get aggroRect() {
         return this._getRectFromRadius(this.aggroRadius);
     }
-    
+
     get attackRect() {
         return this._getRectFromRadius(this.attackRadius);
     }
@@ -151,7 +151,7 @@ class Unit extends Obj {
         };
     }
 
-    performAttack(enemy) {
+    performAttack(target) {
         this.attackPhase++;
         if (this.attackPhase >= this.attackSpeed && this.attackCooldownTicker <= 0) {
             this.attackPhase = 0;
@@ -160,10 +160,13 @@ class Unit extends Obj {
                 this.animAttacking += this.spriteHeight;
             } else {
                 // Reset animation after maximum of sprites is reached
-                enemy.hp -= (this.attack - enemy.defense);
-                enemy.isAggro = true;
                 this.attackCooldownTicker = this.attackCooldown;
                 this.animAttacking = this.animAttackingStart;
+
+                // @Fixme - we probably want to call a function on the target here instead
+                // since a building probably has no isAggro etc.
+                target.hp -= (this.attack - target.defense);
+                target.isAggro = true;
             }
         }
     }
@@ -195,12 +198,12 @@ class Vec2 {
     }
 
     normalize() {
-        let length = this.length();
-        let x = this.x / length;
-        let y = this.y / length;
+        const length = this.length();
+        const x = this.x / length;
+        const y = this.y / length;
         return new Vec2(x, y);
     }
-    
+
     length() {
         return Math.sqrt(this.x*this.x + this.y*this.y);
     }
@@ -211,8 +214,8 @@ createUnit(400, 400, 1);
 createUnit(700, 300, 2);
 
 
-function createUnit (x, y, owner) {
-    let unit = new Unit(x, y, owner);
+function createUnit(x, y, owner) {
+    const unit = new Unit(x, y, owner);
     units.push(unit);
     collidables.push(unit);
 }
@@ -225,7 +228,7 @@ function getMousePos(e) {
     };
 }
 
-function on_canvas_click(e) {
+function handleLeftClick(e) {
     e.preventDefault();
     const mousePos = getMousePos(e);
 
@@ -242,12 +245,12 @@ function on_canvas_click(e) {
             unit.targetY = mousePos.y + (idx * (unit.height + 10));
         });
     } else {
-        const clicked_unit = units.find(unit => (doesPointCollideRect(mousePos, unit.collisionRect)));
-        const ground_clicked = !clicked_unit;
-        if (ground_clicked) {
+        const clickedUnit = units.find(unit => (doesPointCollideRect(mousePos, unit.collisionRect)));
+        const groundClicked = !clickedUnit;
+        if (groundClicked) {
             deselectUnits();
         } else {
-            selectUnit(clicked_unit);
+            selectUnit(clickedUnit);
         }
     }
 }
@@ -260,18 +263,20 @@ function deselectUnits() {
 }
 
 function selectUnit(unit) {
-    const unit_already_selected = selectedUnits.find(selectedUnit => (selectedUnit.id === unit.id));
-    if (unit_already_selected) {
+    const unitAlreadySelected = selectedUnits.find(selectedUnit => (selectedUnit.id === unit.id));
+    if (unitAlreadySelected) {
         return;
     }
 
-    if (unit.controller === humanPlayer) {
-        selectedUnits.push(unit);
-        unit.isSelected = true;
+    if (unit.controller !== humanPlayer) {
+        return;
     }
+
+    selectedUnits.push(unit);
+    unit.isSelected = true;
 }
 
-function on_canvas_rightclick(e) {
+function handleRightClick(e) {
     e.preventDefault();
     const mousePos = getMousePos(e);
 
@@ -281,13 +286,12 @@ function on_canvas_rightclick(e) {
     }
 
     nextLeftClickAction = "";
-    const clicked_unit = units.find(unit => (doesPointCollideRect(mousePos, unit.collisionRect)));
-    if (clicked_unit) {
-        console.log('unit clicked');
+    const clickedUnit = units.find(unit => (doesPointCollideRect(mousePos, unit.collisionRect)));
+    if (clickedUnit) {
         selectedUnits.forEach(unit => {
-            unit.targetUnit = clicked_unit;
+            unit.targetUnit = clickedUnit;
             unit.reactionTimeCount = 0;
-            if (unit.controller !== clicked_unit.controller) {
+            if (unit.controller !== clickedUnit.controller) {
                 unit.fixedAggro = true;
                 unit.isAggro = true;
             } else {
@@ -325,13 +329,13 @@ function doesPointCollideRect(p, r) {
 
 
 //// update functions
-function update_attacking (dt) {
+function updateAttacking() {
     units.forEach(unit => {
         unit.attackCooldownTicker--;
         if (!unit.isAggro) {
             return;
         }
-        
+
         let enemy = null;
         let minDistance = null;
         units.forEach(targetUnit => {
@@ -342,9 +346,9 @@ function update_attacking (dt) {
                         if (unit.controller !== targetUnit.controller && !targetUnit.isDead) {
                             unit.reactionTimeCount++;
                             if (unit.reactionTimeCount >= unit.reactionTime) {
-                                let vecUnit = new Vec2(unit.x, unit.y);
-                                let vecTarget = new Vec2(targetUnit.x, targetUnit.y);
-                                let distance = vecUnit.subtract(vecTarget);
+                                const vecUnit = new Vec2(unit.x, unit.y);
+                                const vecTarget = new Vec2(targetUnit.x, targetUnit.y);
+                                const distance = vecUnit.subtract(vecTarget);
                                 if (minDistance === null) {
                                     minDistance = distance;
                                     enemy = targetUnit;
@@ -366,63 +370,63 @@ function update_attacking (dt) {
         if (unit.targetUnit) {
             unit.targetX = unit.targetUnit.x;
             unit.targetY = unit.targetUnit.y;
-            
+
             if (doesRectCollideRect(unit.attackRect, enemy.collisionRect) && !enemy.isDead) {
                 unit.isAttacking = true;
                 unit.performAttack(enemy);
             } else {
                 unit.isAttacking = false;
             }
-        }  
+        }
     });
 }
 
-function update_movement(dt) {
+function updateMovement(dt) {
      // Movement
      units.forEach(unit => {
         if (unit.x != unit.targetX && unit.y != unit.targetY && !unit.isAttacking) {
             // set new position
-            let target = new Vec2(unit.targetX, unit.targetY);
-            let position = new Vec2(unit.x, unit.y);
-            let direction = target.subtract(position);
-            let direction_normalized = direction.normalize();
+            const target = new Vec2(unit.targetX, unit.targetY);
+            const position = new Vec2(unit.x, unit.y);
+            const direction = target.subtract(position);
+            let directionNormalized = direction.normalize();
             if (DebugFlags.moveOnlyAlong8CardinalDirections.value) {
                 // @FIXME - copy pasted from the walking animation for now
-                var angle = Math.atan2(unit.targetY - unit.y, unit.targetX - unit.x) * 180 / Math.PI;
+                const angle = Math.atan2(unit.targetY - unit.y, unit.targetX - unit.x) * 180 / Math.PI;
                 // Determine direction
                 if (angle > -112.5 && angle < -67.6) {
-                    direction_normalized = new Vec2(0, -1); // top
+                    directionNormalized = new Vec2(0, -1); // top
                 } else if (angle > -67.5 && angle < -22.6) {
-                    direction_normalized = new Vec2(1, -1).normalize(); // top-right
+                    directionNormalized = new Vec2(1, -1).normalize(); // top-right
                 } else if (angle > -22.5 && angle < 22.6) {
-                    direction_normalized = new Vec2(1, 0); // right
+                    directionNormalized = new Vec2(1, 0); // right
                 } else if (angle > 22.5 && angle < 67.6) {
-                    direction_normalized = new Vec2(1, 1).normalize(); // down-right
+                    directionNormalized = new Vec2(1, 1).normalize(); // down-right
                 } else if (angle > 67.5 && angle < 112.6) {
-                    direction_normalized = new Vec2(0, 1); // down
+                    directionNormalized = new Vec2(0, 1); // down
                 } else if (angle > 112.5 && angle < 157.6) {
-                    direction_normalized = new Vec2(-1, 1).normalize(); // down-left
+                    directionNormalized = new Vec2(-1, 1).normalize(); // down-left
                 } else if (angle > 157.5 && angle < 180 || angle < -157.5 && angle > -180.1) {
-                    direction_normalized = new Vec2(-1, 0); // left
+                    directionNormalized = new Vec2(-1, 0); // left
                 } else if (angle < -112.5 && angle > -157.6) {
-                    direction_normalized = new Vec2(-1, -1).normalize(); // top-left
+                    directionNormalized = new Vec2(-1, -1).normalize(); // top-left
                 }
             }
 
-            let velocity = direction_normalized.multiply(unit.movementSpeed);
-            let covered_distance = velocity.multiply(dt);
-            if (covered_distance.length() > direction.length()) {
+            const velocity = directionNormalized.multiply(unit.movementSpeed);
+            let coveredDistance = velocity.multiply(dt);
+            if (coveredDistance.length() > direction.length()) {
                 // x,y of the unit + direction should be targetX,Y
                 // but that may not be true due to floating point precision?
                 // It at least seems not to be a problem
-                covered_distance = direction;
+                coveredDistance = direction;
             }
-            unit.x += covered_distance.x;
-            unit.y += covered_distance.y;
+            unit.x += coveredDistance.x;
+            unit.y += coveredDistance.y;
 
 
             // Walking animation
-            var angle = Math.atan2(unit.targetY - unit.y, unit.targetX - unit.x) * 180 / Math.PI;
+            const angle = Math.atan2(unit.targetY - unit.y, unit.targetX - unit.x) * 180 / Math.PI;
             unit.animPhase++;
             if (unit.animPhase >= unit.animFramesBetweenPhases) {
                 unit.animPhase = 0;
@@ -431,9 +435,9 @@ function update_movement(dt) {
                     The direction will determine the shown animation sprite. One sprite for each direction.
 
                                     dirX    dirY    angleMin  angleMax
-                    top             0       pos.    -112.6    -67.5  
-                    top-right       pos.    pos.     -67.6    -22.5
-                    right           pos.    0        -22.6     22.5      
+                    top             0       pos.    -112.6     -67.5
+                    top-right       pos.    pos.     -67.6     -22.5
+                    right           pos.    0        -22.6      22.5
                     down-right      pos.    neg.      22.6      67.5
                     down            0       neg.      67.6     112.5
                     down-left       neg.    neg.     112.6     157.5
@@ -473,7 +477,7 @@ function update_movement(dt) {
     });
 }
 
-function update_collision(dt) {
+function updateCollision(dt) {
     // Collision Pass
     units.forEach(unit => {
         collidables.forEach(collidable => {
@@ -492,7 +496,7 @@ function update_collision(dt) {
     });
 }
 
-function update_dying(dt) {
+function updateDying(dt) {
     units.forEach(unit => {
         if (unit.hp <= 0 ) {
             unit.isDead = true;
@@ -506,10 +510,10 @@ function update_dying(dt) {
 }
 
 function update(dt) {
-    update_dying(dt);
-    update_attacking(dt);
-    update_movement(dt);
-    update_collision(dt);
+    updateDying(dt);
+    updateAttacking(dt);
+    updateMovement(dt);
+    updateCollision(dt);
 }
 
 
@@ -573,7 +577,7 @@ function render() {
 //// Main Loop
 let lastTimeStamp = 0;
 function tick(timeStamp /* DOMHighResTimeStamp */) {
-    let dt = (timeStamp - lastTimeStamp) / 1000;
+    const dt = (timeStamp - lastTimeStamp) / 1000;
     lastTimeStamp = timeStamp;
 
     update(dt);
