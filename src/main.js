@@ -115,7 +115,7 @@ class Unit extends Obj {
         this.isDead = false;
 
         // reaction
-        this.reactionTime = 30; // Brainfart in frames
+        this.reactionTime = 0; // Brainfart in frames
         this.reactionTimeCount = 0;
     }
 
@@ -305,6 +305,7 @@ function handleRightClick(e) {
             unit.reactionTimeCount = 0;
             unit.isAttacking = false;
             unit.isAggro =  false;
+            unit.fixedAggro = false;
             unit.targetUnit = null;
             // @Incomplete - formation logic
             unit.targetX = mousePos.x + (idx * (unit.width + 10)); // TODO put padding in variable
@@ -373,6 +374,13 @@ function updateAttacking() {
 
             if (doesRectCollideRect(unit.attackRect, enemy.collisionRect) && !enemy.isDead) {
                 unit.isAttacking = true;
+                unit.direction = getDirection({
+                	x: unit.x,
+                	y: unit.y
+                }, {
+                	x: enemy.x,
+                	y: enemy.y
+                }, asVector=false);
                 unit.performAttack(enemy);
             } else {
                 unit.isAttacking = false;
@@ -381,29 +389,48 @@ function updateAttacking() {
     });
 }
 
-function getDirection(unit, targetPoint) {
-    // @FIXME - copy pasted from the walking animation for now
+function getDirection(unit, targetPoint, asVector=true) {
+    // @Cleanup
     const angle = Math.atan2(targetPoint.y - unit.y, targetPoint.x - unit.x) * 180 / Math.PI;
-    // Determine direction
-    let directionNormalized;
-    if (angle > -112.5 && angle < -67.6) {
-        directionNormalized = new Vec2(0, -1); // top
-    } else if (angle > -67.5 && angle < -22.6) {
-        directionNormalized = new Vec2(1, -1).normalize(); // top-right
-    } else if (angle > -22.5 && angle < 22.6) {
-        directionNormalized = new Vec2(1, 0); // right
-    } else if (angle > 22.5 && angle < 67.6) {
-        directionNormalized = new Vec2(1, 1).normalize(); // down-right
-    } else if (angle > 67.5 && angle < 112.6) {
-        directionNormalized = new Vec2(0, 1); // down
-    } else if (angle > 112.5 && angle < 157.6) {
-        directionNormalized = new Vec2(-1, 1).normalize(); // down-left
-    } else if (angle > 157.5 && angle < 180 || angle < -157.5 && angle > -180.1) {
-        directionNormalized = new Vec2(-1, 0); // left
-    } else if (angle < -112.5 && angle > -157.6) {
-        directionNormalized = new Vec2(-1, -1).normalize(); // top-left
+    let direction;
+    if (asVector) {
+    	if (angle > -112.5 && angle < -67.6) {
+        	direction = new Vec2(0, -1); // top
+    	} else if (angle > -67.5 && angle < -22.6) {
+        	direction = new Vec2(1, -1).normalize(); // top-right
+    	} else if (angle > -22.5 && angle < 22.6) {
+        	direction = new Vec2(1, 0); // right
+    	} else if (angle > 22.5 && angle < 67.6) {
+        	direction = new Vec2(1, 1).normalize(); // down-right
+    	} else if (angle > 67.5 && angle < 112.6) {
+        	direction = new Vec2(0, 1); // down
+    	} else if (angle > 112.5 && angle < 157.6) {
+        	direction = new Vec2(-1, 1).normalize(); // down-left
+    	} else if (angle > 157.5 && angle < 180 || angle < -157.5 && angle > -180.1) {
+        	direction = new Vec2(-1, 0); // left
+    	} else if (angle < -112.5 && angle > -157.6) {
+        	direction = new Vec2(-1, -1).normalize(); // top-left
+    	}
+    } else {
+        if (angle > -112.5 && angle < -67.6) {
+            direction = 0; // top
+        } else if (angle > -67.5 && angle < -22.6) {
+            direction = 1; // top-right
+        } else if (angle > -22.5 && angle < 22.6) {
+            direction = 2; // right
+        } else if (angle > 22.5 && angle < 67.6) {
+            direction = 3; // down-right
+        } else if (angle > 67.5 && angle < 112.6) {
+            direction = 4; // down
+        } else if (angle > 112.5 && angle < 157.6) {
+            direction = 5; // down-left
+        } else if (angle > 157.5 && angle < 180 || angle < -157.5 && angle > -180.1) {
+            direction = 6; // left
+        } else if (angle < -112.5 && angle > -157.6) {
+            direction = 7; // top-left
+        }
     }
-    return directionNormalized;
+    return direction;
 }
 
 function updateMovement(dt) {
@@ -416,7 +443,13 @@ function updateMovement(dt) {
             const direction = target.subtract(position);
             let directionNormalized = direction.normalize();
             if (DebugFlags.moveOnlyAlong8CardinalDirections.value) {
-                
+         		directionNormalized = getDirection({
+         			x: unit.x,
+         			y: unit.y
+         		}, {
+         			x: unit.targetX,
+         			y: unit.targetY
+         		});
             }
 
             const velocity = directionNormalized.multiply(unit.movementSpeed);
@@ -432,45 +465,16 @@ function updateMovement(dt) {
 
 
             // Walking animation
-            const angle = Math.atan2(unit.targetY - unit.y, unit.targetX - unit.x) * 180 / Math.PI;
             unit.animPhase++;
             if (unit.animPhase >= unit.animFramesBetweenPhases) {
                 unit.animPhase = 0;
-                /*
-                    Each direction has a range of 45 degrees. Top is 0 degree +/- 22,5 (45 / 2).
-                    The direction will determine the shown animation sprite. One sprite for each direction.
-
-                                    dirX    dirY    angleMin  angleMax
-                    top             0       pos.    -112.6     -67.5
-                    top-right       pos.    pos.     -67.6     -22.5
-                    right           pos.    0        -22.6      22.5
-                    down-right      pos.    neg.      22.6      67.5
-                    down            0       neg.      67.6     112.5
-                    down-left       neg.    neg.     112.6     157.5
-                    left            neg.    0        157.6     180.0   & -180   -157.5
-                    top-left        neg.    pos.    -157.6    -112.5
-
-                */
-
-                // Determine direction
-                if (angle > -112.5 && angle < -67.6) {
-                    unit.direction = 0; // top
-                } else if (angle > -67.5 && angle < -22.6) {
-                    unit.direction = 1; // top-right
-                } else if (angle > -22.5 && angle < 22.6) {
-                    unit.direction = 2; // right
-                } else if (angle > 22.5 && angle < 67.6) {
-                    unit.direction = 3; // down-right
-                } else if (angle > 67.5 && angle < 112.6) {
-                    unit.direction = 4; // down
-                } else if (angle > 112.5 && angle < 157.6) {
-                    unit.direction = 5; // down-left
-                } else if (angle > 157.5 && angle < 180 || angle < -157.5 && angle > -180.1) {
-                    unit.direction = 6; // left
-                } else if (angle < -112.5 && angle > -157.6) {
-                    unit.direction = 7; // top-left
-                }
-
+                unit.direction = getDirection({
+                	x: unit.x,
+                	y: unit.y
+                }, {
+                	x: unit.targetX,
+                	y: unit.targetY
+                }, asVector=false);
                 // Show next sprite
                 if (!(unit.animWalking >= unit.animWalkingMax)) {
                     unit.animWalking += unit.spriteHeight;
@@ -479,6 +483,9 @@ function updateMovement(dt) {
                     unit.animWalking = 0;
                 }
             }
+        }
+        if (unit.x === unit.targetX && unit.y === unit.targetY) {
+        	unit.isAggro = true;
         }
     });
 }
