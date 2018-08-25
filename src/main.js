@@ -381,6 +381,31 @@ function updateAttacking() {
     });
 }
 
+function getDirection(unit, targetPoint) {
+    // @FIXME - copy pasted from the walking animation for now
+    const angle = Math.atan2(targetPoint.y - unit.y, targetPoint.x - unit.x) * 180 / Math.PI;
+    // Determine direction
+    let directionNormalized;
+    if (angle > -112.5 && angle < -67.6) {
+        directionNormalized = new Vec2(0, -1); // top
+    } else if (angle > -67.5 && angle < -22.6) {
+        directionNormalized = new Vec2(1, -1).normalize(); // top-right
+    } else if (angle > -22.5 && angle < 22.6) {
+        directionNormalized = new Vec2(1, 0); // right
+    } else if (angle > 22.5 && angle < 67.6) {
+        directionNormalized = new Vec2(1, 1).normalize(); // down-right
+    } else if (angle > 67.5 && angle < 112.6) {
+        directionNormalized = new Vec2(0, 1); // down
+    } else if (angle > 112.5 && angle < 157.6) {
+        directionNormalized = new Vec2(-1, 1).normalize(); // down-left
+    } else if (angle > 157.5 && angle < 180 || angle < -157.5 && angle > -180.1) {
+        directionNormalized = new Vec2(-1, 0); // left
+    } else if (angle < -112.5 && angle > -157.6) {
+        directionNormalized = new Vec2(-1, -1).normalize(); // top-left
+    }
+    return directionNormalized;
+}
+
 function updateMovement(dt) {
      // Movement
      units.forEach(unit => {
@@ -391,26 +416,7 @@ function updateMovement(dt) {
             const direction = target.subtract(position);
             let directionNormalized = direction.normalize();
             if (DebugFlags.moveOnlyAlong8CardinalDirections.value) {
-                // @FIXME - copy pasted from the walking animation for now
-                const angle = Math.atan2(unit.targetY - unit.y, unit.targetX - unit.x) * 180 / Math.PI;
-                // Determine direction
-                if (angle > -112.5 && angle < -67.6) {
-                    directionNormalized = new Vec2(0, -1); // top
-                } else if (angle > -67.5 && angle < -22.6) {
-                    directionNormalized = new Vec2(1, -1).normalize(); // top-right
-                } else if (angle > -22.5 && angle < 22.6) {
-                    directionNormalized = new Vec2(1, 0); // right
-                } else if (angle > 22.5 && angle < 67.6) {
-                    directionNormalized = new Vec2(1, 1).normalize(); // down-right
-                } else if (angle > 67.5 && angle < 112.6) {
-                    directionNormalized = new Vec2(0, 1); // down
-                } else if (angle > 112.5 && angle < 157.6) {
-                    directionNormalized = new Vec2(-1, 1).normalize(); // down-left
-                } else if (angle > 157.5 && angle < 180 || angle < -157.5 && angle > -180.1) {
-                    directionNormalized = new Vec2(-1, 0); // left
-                } else if (angle < -112.5 && angle > -157.6) {
-                    directionNormalized = new Vec2(-1, -1).normalize(); // top-left
-                }
+                
             }
 
             const velocity = directionNormalized.multiply(unit.movementSpeed);
